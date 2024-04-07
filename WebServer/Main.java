@@ -8,6 +8,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.io.File;
+import java.io.FileInputStream;
 
 public class Main {
     public static void main(String[] args) {
@@ -20,11 +22,11 @@ class Server {
     private AsynchronousServerSocketChannel server;
 
     private final static String HEADERS =
-            "HTTP/1.1 200 OK\n" +
-                    "Server: naive\n" +
-                    "Content-Type: text/html\n" +
-                    "Content-Length: %s\n" +
-                    "Connection: close\n\n";
+        "HTTP/1.1 200 OK\n" +
+        "Server: naive\n" +
+        "Content-Type: text/html\n" +
+        "Content-Length: %s\n" +
+        "Connection: close\n\n";
 
     public void bootstrap() {
         try {
@@ -71,11 +73,29 @@ class Server {
                 buffer.clear();
             }
 
-            String body = "<html><body><h1>Hello, naive</h1></body></html>";
-            String page = String.format(HEADERS, body.length()) + body;
-            ByteBuffer resp = ByteBuffer.wrap(page.getBytes());
-            clientChannel.write(resp);
+            String request = builder.toString();
+            String response;
 
+            if (request.contains("GET /hello.html")) {
+                File file = new File("hello.html");
+                if (file.exists()) {
+                    FileInputStream fis = new FileInputStream(file);
+                    byte[] data = new byte[(int) file.length()];
+                    fis.read(data);
+                    fis.close();
+
+                    String body = new String(data);
+                    String headers = String.format(HEADERS, body.length());
+                    response = headers + body;
+                } else {
+                    response = "HTTP/1.1 404 Not Found\n\n<h1>404 Not Found</h1>";
+                }
+            } else {
+                response = "HTTP/1.1 404 Not Found\n\n<h1>404 Not Found</h1>";
+            }
+
+            ByteBuffer resp = ByteBuffer.wrap(response.getBytes());
+            clientChannel.write(resp);
             clientChannel.close();
         }
     }
